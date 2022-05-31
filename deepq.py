@@ -1,6 +1,11 @@
 # Implementation of the Deep Q learning algorithm
 # without task specific details, which are in tasks.py
 
+# References
+#
+# Useful empirical tips at:
+# https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756
+
 import math
 import numpy as np
 import random

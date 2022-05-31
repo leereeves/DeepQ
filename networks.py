@@ -39,6 +39,8 @@ class AtariNetwork(torch.nn.Module):
         self.fc4 = torch.nn.Linear(7 * 7 * 64, 512, dtype=torch.float32)
         self.fc5 = torch.nn.Linear(512, self.n_actions, dtype=torch.float32)
 
+        self.init_weights()
+
         self.optimizer = Adam(self.parameters(), lr = learning_rate)
         #self.loss = torch.nn.MSELoss()
         self.loss = torch.nn.SmoothL1Loss()
@@ -52,3 +54,13 @@ class AtariNetwork(torch.nn.Module):
         # RuntimeError: mat1 and mat2 shapes cannot be multiplied (28672x7 and 3136x512)
         x = torch.nn.functional.relu(self.fc4(x.view(x.size(0), -1)))
         return self.fc5(x)
+
+    def init_weights(self):
+        for m in self.modules():
+            if isinstance(m, torch.nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                if m.bias is not None:
+                    torch.nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, torch.nn.Linear):
+                torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                torch.nn.init.constant_(m.bias, 0.0)
