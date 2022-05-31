@@ -5,7 +5,7 @@ from torch.nn import Linear, ReLU
 # Fully connected network for classic control tasks
 class FCNetwork(torch.nn.Module):
     def __init__(self, state_len, n_actions, learning_rate, device):
-        super(FCNetwork, self).__init__()
+        super().__init__()
         self.device = device
         self.learning_rate = learning_rate
         self.n_actions = n_actions
@@ -28,7 +28,7 @@ class FCNetwork(torch.nn.Module):
 # Convolutional network for Atari games, as described in Mnih 2015
 class AtariNetwork(torch.nn.Module):
     def __init__(self, n_actions, learning_rate, device):
-        super(AtariNetwork, self).__init__()
+        super().__init__()
         self.device = device
         self.n_actions = n_actions
         self.learning_rate = learning_rate
@@ -40,6 +40,12 @@ class AtariNetwork(torch.nn.Module):
         self.fc5 = torch.nn.Linear(512, self.n_actions, dtype=torch.float32)
 
         self.init_weights()
+        # The initial weights assigned by init_weights tend to result in 
+        # Q values that are much too high (Q values should be less than one 
+        # until the network learns to play well enough to score points).
+        # I adjust for that here by simply reducing the initial weights
+        # in the final layer.
+        self.fc5.weight = torch.nn.parameter.Parameter(self.fc5.weight / 100)
 
         self.optimizer = Adam(self.parameters(), lr = learning_rate)
         #self.loss = torch.nn.MSELoss()

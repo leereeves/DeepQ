@@ -8,11 +8,13 @@
     "memory_size": 1000000,
     "replay_start_size": 50000,
     "target_update": 10000,
+    "reset_weights": 50000,
+    "initial_weight" : 100,
     "checkpoint_episode_count": 10,
     "initial_exploration": 1,
     "final_exploration": 0.1,
-    "final_exploration_step": 1000000,
-    "learning_rate": 0.00005,
+    "final_exploration_step": 250000,
+    "learning_rate": 0.00002,
     "gamma": 0.99,
     "checkpoint_filename": "breakout.pt"
 }

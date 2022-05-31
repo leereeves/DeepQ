@@ -14,24 +14,7 @@ import torch
 from datetime import timedelta
 from os.path import exists
 
-class ReplayMemory(object):
-    def __init__(self, capacity):
-        self.capacity = int(capacity)
-        self.buffer = [None] * self.capacity
-        self.allocated = 0
-        self.index = 0
-
-    def store_transition(self, state, action, new_state, reward, done):
-        self.buffer[self.index] = (state, action, new_state, reward, done)
-        if (self.allocated + 1) < self.capacity:
-            self.allocated += 1
-            self.index += 1
-        else:
-            self.index = (self.index + 1) % self.capacity
-
-    def sample(self, batch_size):
-        ii = random.sample(range(self.allocated), k=batch_size)
-        return [self.buffer[i] for i in ii]
+import memory
 
 class DeepQ(object):
     def __init__(self, task, config):
@@ -39,7 +22,7 @@ class DeepQ(object):
         self.config = config
         self.device = torch.device(config['device'])
         self.batch_size = config['batch_size']
-        self.memory = ReplayMemory(config['memory_size'])
+        self.memory = memory.PrioritizedReplayMemory(config['memory_size'])
         self.replay_start_size = config['replay_start_size']
 
         self.policy_network = self.task.create_network(self.device)
@@ -76,19 +59,28 @@ class DeepQ(object):
             state_tensor = torch.tensor(np.asarray(state, dtype = np.float32)).to(self.device)
             state_tensor = state_tensor.unsqueeze(0) # Add a batch dimension of length 1
             q = self.policy_network.forward(state_tensor)
-            action = torch.argmax(q).item()
+            max, index = torch.max(q, dim=1)
+            action = index.item()
+            self.qs.append(max.item())
 
         return action
 
     def minibatch_update(self):
         # a uniform random policy is run for this number of frames before learning starts
-        if self.memory.allocated < self.replay_start_size or self.memory.allocated < self.batch_size:
+        if len(self.memory) < self.replay_start_size or len(self.memory) < self.batch_size:
             return
 
         if (self.task.step_count % self.config['target_update']) == 0:
             self.target_network.load_state_dict(self.policy_network.state_dict())
 
-        batch = self.memory.sample(self.batch_size)
+
+        # Although Schaul (2015) recommended a randomized approach to reevaluating old transitions
+        # (whose q values may now be incorrect because the target values have changed)
+        # I prefer a systematic approach, periodically reevaluating every stored transition.
+        if (self.task.step_count % self.config['reset_weights']) == 0:
+            self.memory.set_all_weights(self.config['initial_weight'])
+
+        indexes,batch = self.memory.sample(self.batch_size)
         states, actions, new_states, rewards, dones = list(zip(*batch)) # unzip the tuples
 
         # Follow PyTorch's advice:
@@ -126,6 +118,12 @@ class DeepQ(object):
         loss.backward()
         self.policy_network.optimizer.step()
 
+        # Update weights in prioritized replay memory
+        with torch.no_grad():
+            deltas = (target-prediction).absolute()
+        for i in range(self.batch_size):
+            self.memory.update_weight(indexes[i], deltas[i].item())
+
         return
 
     def save_model(self):
@@ -135,23 +133,29 @@ class DeepQ(object):
 
         start = time.time()
         scores = []
+
         for self.episode in range(self.task.num_episodes):
+            # This is the start of an episode
             state = self.task.reset()
             score = 0
             done = 0
+            self.qs = [0]
             while not done:
+                # This loops through steps (4 frames for Atari, 1 frame for Cartpole)
                 self.task.render()
                 action = self.choose_action(state)
                 new_state, reward, done, info = self.task.step(action)
                 score += reward
-                self.memory.store_transition(state, action, new_state, reward, done)
+                weight = self.config['initial_weight']
+                self.memory.store_transition(state, action, new_state, reward, done, weight)
                 self.minibatch_update()
                 state = new_state
 
             scores.append(score)
             t = math.ceil(time.time() - start)
-            print("Time {}. Episode {}. Step {}. Score {}. MAvg={}. Epsilon={}".format(
-                timedelta(seconds=t), self.episode, self.task.step_count, score, np.average(scores[-10:]), self.task.epsilon))
+            print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. ε={:0.2f}. Avg p={:0.2f}. Avg q={:0.2f}".format(
+                timedelta(seconds=t), self.episode, self.task.step_count, score, np.average(scores[-10:]), 
+                self.task.epsilon, self.memory.tree.get_average_weight(), np.average(self.qs)))
 
             if self.episode > 0 and self.episode % 10 == 0:
                 print("Saving model {}".format(self.get_model_filename()))
