@@ -53,7 +53,7 @@ class AtariTask(Task):
             self.env = gym.make(self.name, render_mode = "human", frameskip = 1)
         else:
             self.env = gym.make(self.name, frameskip = 1)
-        self.env = gym.wrappers.AtariPreprocessing(self.env)
+        self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
         self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
 
     def create_network(self, device):

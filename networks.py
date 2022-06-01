@@ -31,7 +31,10 @@ class AtariNetwork(torch.nn.Module):
         super().__init__()
         self.device = device
         self.n_actions = n_actions
-        self.learning_rate = learning_rate
+        # Output scaling (see comment in forward())
+        self.output_scale = 100
+        # Adjust learning rate to compensate for output scaling
+        self.learning_rate = learning_rate * self.output_scale
 
         self.conv1 = torch.nn.Conv2d(4, 32, kernel_size = 8, stride = 4, dtype=torch.float32)
         self.conv2 = torch.nn.Conv2d(32, 64, 4, 2, dtype=torch.float32)
@@ -40,12 +43,6 @@ class AtariNetwork(torch.nn.Module):
         self.fc5 = torch.nn.Linear(512, self.n_actions, dtype=torch.float32)
 
         self.init_weights()
-        # The initial weights assigned by init_weights tend to result in 
-        # Q values that are much too high (Q values should be less than one 
-        # until the network learns to play well enough to score points).
-        # I adjust for that here by simply reducing the initial weights
-        # in the final layer.
-        self.fc5.weight = torch.nn.parameter.Parameter(self.fc5.weight / 10000)
 
         self.optimizer = Adam(self.parameters(), lr = learning_rate)
         #self.loss = torch.nn.MSELoss()
@@ -56,10 +53,16 @@ class AtariNetwork(torch.nn.Module):
         x = torch.nn.functional.relu(self.conv1(x))
         x = torch.nn.functional.relu(self.conv2(x))
         x = torch.nn.functional.relu(self.conv3(x))
-        # Without flattening the input tensor the next line gives the error:
+        # Without flattening the input tensor the following line gives the error:
         # RuntimeError: mat1 and mat2 shapes cannot be multiplied (28672x7 and 3136x512)
-        x = torch.nn.functional.relu(self.fc4(x.view(x.size(0), -1)))
-        return self.fc5(x)
+        x = x.view(x.size(0), -1)
+        x = torch.nn.functional.relu(self.fc4(x))
+        x = self.fc5(x)
+        # This network initially generates random values whose variance is close to 1,
+        # so the rewards are on the same order of magnitude as the randomness
+        # and it is hard to learn from that information. To solve this problem,
+        # I scale the output so the variance of the random outputs is much less than 1
+        return x / self.output_scale
 
     def init_weights(self):
         for m in self.modules():

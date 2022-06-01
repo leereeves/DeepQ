@@ -146,6 +146,7 @@ class DeepQ(object):
                 action = self.choose_action(state)
                 new_state, reward, done, info = self.task.step(action)
                 score += reward
+                clipped_reward = math.copysign(1, reward) # calculates clipped_reward = sign(reward)
                 weight = self.config['initial_weight']
                 self.memory.store_transition(state, action, new_state, reward, done, weight)
                 self.minibatch_update()
