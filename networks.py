@@ -45,7 +45,7 @@ class AtariNetwork(torch.nn.Module):
         # until the network learns to play well enough to score points).
         # I adjust for that here by simply reducing the initial weights
         # in the final layer.
-        self.fc5.weight = torch.nn.parameter.Parameter(self.fc5.weight / 100)
+        self.fc5.weight = torch.nn.parameter.Parameter(self.fc5.weight / 10000)
 
         self.optimizer = Adam(self.parameters(), lr = learning_rate)
         #self.loss = torch.nn.MSELoss()
