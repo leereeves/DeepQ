@@ -59,8 +59,21 @@ class AtariTask(Task):
     def create_network(self, device):
         return networks.AtariNetwork(len(self.actions), self.lr, device)
 
+    # def reset(self):
+    #     self.current_lives = None
+    #     return self.env.reset()
+
     def render(self):
         return # Atari games in OpenAI gym don't support this method any more
+
+    # def step(self, action):
+    #     self.step_count += 1
+    #     state, reward, done, info = self.env.step(self.actions[action])
+    #     lives = info['lives']
+    #     if self.current_lives is not None and lives != self.current_lives:
+    #         done = True
+    #     self.current_lives = lives
+    #     return state, reward, done, info
 
 
 class CartpoleTask(Task):

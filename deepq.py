@@ -24,6 +24,8 @@ class DeepQ(object):
         self.batch_size = config['batch_size']
         self.memory = memory.PrioritizedReplayMemory(config['memory_size'])
         self.replay_start_size = config['replay_start_size']
+        self.next_prm_reset = self.replay_start_size
+        self.memory_alpha = 0.1 # somewhat less than 1 so rewards are prioritized
 
         self.policy_network = self.task.create_network(self.device)
         self.target_network = self.task.create_network(self.device)
@@ -77,8 +79,10 @@ class DeepQ(object):
         # Although Schaul (2015) recommended a randomized approach to reevaluating old transitions
         # (whose q values may now be incorrect because the target values have changed)
         # I prefer a systematic approach, periodically reevaluating every stored transition.
-        if (self.task.step_count % self.config['reset_weights']) == 0:
+        #if (self.task.step_count % self.config['reset_weights']) == 0:
+        if self.task.step_count >= self.next_prm_reset:
             self.memory.set_all_weights(self.config['initial_weight'])
+            self.next_prm_reset = self.task.step_count + len(self.memory) / (self.batch_size - 1) * 2
 
         indexes,batch = self.memory.sample(self.batch_size)
         states, actions, new_states, rewards, dones = list(zip(*batch)) # unzip the tuples
@@ -122,7 +126,7 @@ class DeepQ(object):
         with torch.no_grad():
             deltas = (target-prediction).absolute()
         for i in range(self.batch_size):
-            self.memory.update_weight(indexes[i], deltas[i].item())
+            self.memory.update_weight(indexes[i], deltas[i].item() + self.memory_alpha)
 
         return
 
@@ -146,9 +150,9 @@ class DeepQ(object):
                 action = self.choose_action(state)
                 new_state, reward, done, info = self.task.step(action)
                 score += reward
-                clipped_reward = math.copysign(1, reward) # calculates clipped_reward = sign(reward)
+                clipped_reward = np.sign(reward)
                 weight = self.config['initial_weight']
-                self.memory.store_transition(state, action, new_state, reward, done, weight)
+                self.memory.store_transition(state, action, new_state, clipped_reward, done, weight)
                 self.minibatch_update()
                 state = new_state
 
