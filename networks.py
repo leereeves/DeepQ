@@ -32,7 +32,7 @@ class AtariNetwork(torch.nn.Module):
         self.device = device
         self.n_actions = n_actions
         # Output scaling (see comment in forward())
-        self.output_scale = 0.01
+        # self.output_scale = 0.01
 
         self.conv1 = torch.nn.Conv2d(4, 32, kernel_size = 8, stride = 4, dtype=torch.float32)
         self.conv2 = torch.nn.Conv2d(32, 64, 4, 2, dtype=torch.float32)
@@ -60,7 +60,8 @@ class AtariNetwork(torch.nn.Module):
         # so the rewards are on the same order of magnitude as the randomness
         # and it is hard to learn from that information. To solve this problem,
         # I scale the output so the variance of the random outputs is much less than 1
-        return x * self.output_scale
+        # return x * self.output_scale
+        return x
 
     def init_weights(self):
         for m in self.modules():

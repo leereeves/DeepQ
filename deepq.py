@@ -163,11 +163,11 @@ class DeepQ(object):
                 # This loops through steps (4 frames for Atari, 1 frame for Cartpole)
                 self.task.render()
                 action = self.choose_action(state)
-                new_state, reward, done, info = self.task.step(action)
+                new_state, reward, done, info, dead = self.task.step(action)
                 score += reward
                 clipped_reward = np.sign(reward)
                 weight = self.config['initial_weight']
-                self.memory.store_transition(state, action, new_state, clipped_reward, done, weight)
+                self.memory.store_transition(state, action, new_state, clipped_reward, done or dead, weight)
                 self.minibatch_update()
                 state = new_state
 

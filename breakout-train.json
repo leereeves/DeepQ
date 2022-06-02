@@ -15,7 +15,7 @@
     "initial_exploration": 1,
     "final_exploration": 0.1,
     "final_exploration_step": 250000,
-    "learning_rate": 0.00005,
+    "learning_rate": 0.0001,
     "gamma": 0.99,
     "checkpoint_filename": "breakout.pt"
 }
