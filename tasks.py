@@ -10,14 +10,6 @@ class Task(object):
         self.config = config
         self.name = config['gym_env']
         self.actions = config['actions']
-        self.num_episodes = config['max_episodes']
-        self.initial_exploration = config['initial_exploration']
-        self.final_exploration = config['final_exploration']
-        self.final_exploration_step = config['final_exploration_step']
-        self.gamma = config['gamma']
-        self.lr = config['learning_rate']
-
-        self.epsilon = self.initial_exploration
         self.step_count = 0
         self.env = None
 
@@ -37,15 +29,6 @@ class Task(object):
     def close(self):
         return self.env.close()
 
-    def should_explore(self):
-        if self.step_count > self.final_exploration_step:
-            self.epsilon = self.final_exploration
-        else:
-            self.epsilon = self.initial_exploration + \
-                (self.step_count / self.final_exploration_step) * (self.final_exploration - self.initial_exploration)
-
-        return random.random() < self.epsilon
-
 class AtariTask(Task):
     def __init__(self, config):
         super(AtariTask, self).__init__(config)
@@ -56,8 +39,8 @@ class AtariTask(Task):
         self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
         self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
 
-    def create_network(self, device):
-        return networks.AtariNetwork(len(self.actions), self.lr, device)
+    def create_network(self, learning_rate, device):
+        return networks.AtariNetwork(len(self.actions), learning_rate, device)
 
     # def reset(self):
     #     self.current_lives = None
@@ -82,8 +65,8 @@ class CartpoleTask(Task):
         self.env = gym.make(self.name)
         self.state_len = len(self.env.reset())
 
-    def create_network(self, device):
-        return networks.FCNetwork(self.state_len, len(self.actions), self.lr, device)
+    def create_network(self, learning_rate, device):
+        return networks.FCNetwork(self.state_len, len(self.actions), learning_rate, device)
 
 
 def make_task(config):

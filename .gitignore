@@ -1,7 +1,7 @@
 ideas.txt
 # PyTorch network weights
 *.pt
-
+*.pt.gen*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

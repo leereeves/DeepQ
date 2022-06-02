@@ -27,8 +27,17 @@ class DeepQ(object):
         self.next_prm_reset = self.replay_start_size
         self.memory_alpha = 0.1 # somewhat less than 1 so rewards are prioritized
 
-        self.policy_network = self.task.create_network(self.device)
-        self.target_network = self.task.create_network(self.device)
+        self.num_episodes = config['max_episodes']
+        self.initial_exploration = config['initial_exploration']
+        self.final_exploration = config['final_exploration']
+        self.final_exploration_step = config['final_exploration_step']
+        self.gamma = config['gamma']
+        self.lr = config['learning_rate']
+
+        self.epsilon = self.initial_exploration
+
+        self.policy_network = self.task.create_network(self.lr, self.device)
+        self.target_network = self.task.create_network(self.lr, self.device)
 
         # Load old weights if they exist, to continue training
         filename = self.get_model_filename()
@@ -45,17 +54,23 @@ class DeepQ(object):
         return self.config['checkpoint_filename']
         #return "".join(c for c in self.task.name if c.isalnum()) + ".pt"
 
-    def should_explore(self):
+
+    def compute_epsilon(self):
         # a uniform random policy is run for this number of frames
         if self.task.step_count < self.replay_start_size:
-            return True
-        elif self.task.should_explore():
-            return True
+            self.epsilon = 1
+        elif self.episode % self.config['eval_episode_freq'] == 0:
+            self.epsilon = 0.01
+        elif self.task.step_count > self.final_exploration_step:
+            self.epsilon = self.final_exploration
         else:
-            return False
+            self.epsilon = self.initial_exploration + \
+                (self.task.step_count / self.final_exploration_step) * (self.final_exploration - self.initial_exploration)
+
 
     def choose_action(self, state):
-        if self.should_explore():
+        self.compute_epsilon()
+        if random.random() < self.epsilon:
             action = np.random.randint(0, len(self.task.actions))
         else:
             state_tensor = torch.tensor(np.asarray(state, dtype = np.float32)).to(self.device)
@@ -110,8 +125,8 @@ class DeepQ(object):
             target_q = self.target_network(new_states_batch)
             next_actions = policy_q.argmax(axis = 1)
             next_q = target_q.gather(1, next_actions.unsqueeze(1)).squeeze(1)
-            target = rewards_batch + torch.mul(self.task.gamma * next_q, (1 - dones_batch))
-            #target = rewards_batch + torch.mul(self.task.gamma * new_q.max(axis = 1).values, (1 - dones_batch))
+            target = rewards_batch + torch.mul(self.gamma * next_q, (1 - dones_batch))
+            #target = rewards_batch + torch.mul(self.gamma * new_q.max(axis = 1).values, (1 - dones_batch))
 
         # Calculate the network's current predictions
         prediction = self.policy_network.forward(states_batch).gather(1,actions_batch.unsqueeze(1)).squeeze(1)
@@ -138,7 +153,7 @@ class DeepQ(object):
         start = time.time()
         scores = []
 
-        for self.episode in range(self.task.num_episodes):
+        for self.episode in range(self.num_episodes):
             # This is the start of an episode
             state = self.task.reset()
             score = 0
@@ -160,7 +175,7 @@ class DeepQ(object):
             t = math.ceil(time.time() - start)
             print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. ε={:0.2f}. Avg p={:0.2f}. Avg q={:0.2f}".format(
                 timedelta(seconds=t), self.episode, self.task.step_count, score, np.average(scores[-10:]), 
-                self.task.epsilon, self.memory.tree.get_average_weight(), np.average(self.qs)))
+                self.epsilon, self.memory.tree.get_average_weight(), np.average(self.qs)))
 
             if self.episode > 0 and self.episode % 10 == 0:
                 print("Saving model {}".format(self.get_model_filename()))

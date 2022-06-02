@@ -4,6 +4,7 @@
     "task_class": "breakout",
     "actions": [1, 2, 3],
     "max_episodes": 10000,
+    "eval_episode_freq" : 10,
     "batch_size": 32,
     "memory_size": 1000000,
     "replay_start_size": 50000,
