@@ -1,13 +1,10 @@
 import torch
-from torch.optim import Adam
 from torch.nn import Linear, ReLU
 
 # Fully connected network for classic control tasks
 class FCNetwork(torch.nn.Module):
-    def __init__(self, state_len, n_actions, learning_rate, device):
+    def __init__(self, state_len, n_actions):
         super().__init__()
-        self.device = device
-        self.learning_rate = learning_rate
         self.n_actions = n_actions
 
         self.network = torch.nn.Sequential(
@@ -17,22 +14,15 @@ class FCNetwork(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(512, n_actions)
         )
-        self.optimizer = Adam(self.parameters(), lr = learning_rate)
-        self.loss = torch.nn.MSELoss()
         
-        self.to(self.device)
-
     def forward(self, state):
         return self.network(state)
 
 # Convolutional network for Atari games, as described in Mnih 2015
 class AtariNetwork(torch.nn.Module):
-    def __init__(self, n_actions, learning_rate, device):
+    def __init__(self, n_actions):
         super().__init__()
-        self.device = device
         self.n_actions = n_actions
-        # Output scaling (see comment in forward())
-        # self.output_scale = 0.01
 
         self.conv1 = torch.nn.Conv2d(4, 32, kernel_size = 8, stride = 4, dtype=torch.float32)
         self.conv2 = torch.nn.Conv2d(32, 64, 4, 2, dtype=torch.float32)
@@ -41,11 +31,6 @@ class AtariNetwork(torch.nn.Module):
         self.fc5 = torch.nn.Linear(512, self.n_actions, dtype=torch.float32)
 
         self.init_weights()
-
-        self.optimizer = Adam(self.parameters(), lr = learning_rate)
-        #self.loss = torch.nn.MSELoss()
-        self.loss = torch.nn.SmoothL1Loss()
-        self.to(self.device)
 
     def forward(self, x):
         x = torch.nn.functional.relu(self.conv1(x))

@@ -24,20 +24,20 @@ class DeepQ(object):
         self.batch_size = config['batch_size']
         self.memory = memory.PrioritizedReplayMemory(config['memory_size'])
         self.replay_start_size = config['replay_start_size']
-        self.next_prm_reset = self.replay_start_size
         self.memory_alpha = 0.1 # somewhat less than 1 so rewards are prioritized
+        self.gamma = config['gamma']
 
         self.num_episodes = config['max_episodes']
         self.initial_exploration = config['initial_exploration']
         self.final_exploration = config['final_exploration']
         self.final_exploration_step = config['final_exploration_step']
-        self.gamma = config['gamma']
-        self.lr = config['learning_rate']
-
         self.epsilon = self.initial_exploration
 
-        self.policy_network = self.task.create_network(self.lr, self.device)
-        self.target_network = self.task.create_network(self.lr, self.device)
+        self.lr = config['learning_rate']
+        self.policy_network = self.task.create_network().to(self.device)
+        self.target_network = self.task.create_network().to(self.device)
+        self.optimizer = torch.optim.Adam(self.policy_network.parameters(), lr = self.lr)
+        self.loss = torch.nn.SmoothL1Loss(reduction = 'none', beta = 1.0)
 
         # Load old weights if they exist, to continue training
         filename = self.get_model_filename()
@@ -90,16 +90,7 @@ class DeepQ(object):
         if (self.task.step_count % self.config['target_update']) == 0:
             self.target_network.load_state_dict(self.policy_network.state_dict())
 
-
-        # Although Schaul (2015) recommended a randomized approach to reevaluating old transitions
-        # (whose q values may now be incorrect because the target values have changed)
-        # I prefer a systematic approach, periodically reevaluating every stored transition.
-        #if (self.task.step_count % self.config['reset_weights']) == 0:
-        if self.task.step_count >= self.next_prm_reset:
-            self.memory.set_all_weights(self.config['initial_weight'])
-            self.next_prm_reset = self.task.step_count + len(self.memory) / (self.batch_size - 1) * 2
-
-        indexes,batch = self.memory.sample(self.batch_size)
+        indexes, batch, weights = self.memory.sample(self.batch_size)
         states, actions, new_states, rewards, dones = list(zip(*batch)) # unzip the tuples
 
         # Follow PyTorch's advice:
@@ -111,6 +102,7 @@ class DeepQ(object):
         new_states = np.asarray(new_states)
         rewards = np.asarray(rewards)
         dones = np.asarray(dones)
+        weights = np.asarray(weights)
 
         # Now create tensors
         states_batch = torch.tensor(states, dtype = torch.float32).to(self.device)
@@ -118,6 +110,7 @@ class DeepQ(object):
         actions_batch = torch.tensor(actions, dtype = torch.long).to(self.device)
         rewards_batch = torch.tensor(rewards, dtype = torch.float32).to(self.device)
         dones_batch = torch.tensor(dones, dtype = torch.float32).to(self.device)
+        weights_batch = torch.tensor(weights, dtype = torch.float32).to(self.device)
 
         # Calculate the Bellman equation, setting the value of Q* to zero in states after the task is done
         with torch.no_grad():
@@ -131,11 +124,20 @@ class DeepQ(object):
         # Calculate the network's current predictions
         prediction = self.policy_network.forward(states_batch).gather(1,actions_batch.unsqueeze(1)).squeeze(1)
 
-        # Train the network to predict the results of the Bellman equation
-        self.policy_network.optimizer.zero_grad()
-        loss = self.policy_network.loss(prediction, target)
+        # Calculate annealing factor for importance sampling
+        # Grows linearly from 0.4 to 1 during exploration as epsilon decreases
+        beta = 0.4 + (0.6 * self.task.step_count / self.final_exploration_step)
+
+        # Normalize weights so they only scale the update downwards
+        weights_batch = weights_batch / weights_batch.max()
+
+        # Train the network to predict the results of the Bellman equation        
+        self.optimizer.zero_grad()
+        loss = self.loss(prediction, target)
+        loss = loss * weights_batch.pow(beta) # importance sampling
+        loss = loss.mean()
         loss.backward()
-        self.policy_network.optimizer.step()
+        self.optimizer.step()
 
         # Update weights in prioritized replay memory
         with torch.no_grad():

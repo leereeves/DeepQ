@@ -35,12 +35,10 @@ class ReplayMemory(object):
     def sample(self, batch_size):
         indexes = random.sample(range(self.allocated), k=batch_size)
         samples = [self.buffer[i] for i in indexes]
-        return indexes, samples
+        weights = [1] * batch_size
+        return indexes, samples, weights
 
     def update_weight(self, index, weight):
-        return
-
-    def set_all_weights(self, weight):
         return
 
 class PrioritizedReplayMemory(object):
@@ -58,20 +56,27 @@ class PrioritizedReplayMemory(object):
     def sample(self, batch_size):
         indexes = []
         samples = []
+        weights = []
+        N = len(self)
         while len(indexes) < batch_size:
             r = random.random() * self.tree.get_total_weight()
             i = self.tree.get_index_by_weight(r)
-            if i not in indexes:
-                t = self.tree.get_data(i)
-                indexes.append(i)
-                samples.append(t)
+            # w is the weight for importance sampling (see Schaul 2016)
+            # w = (1/N) * (1/P(i))
+            w = (1/N) * (self.tree.get_total_weight() / self.tree.get_weight(i))
+            # For debugging: verify that there are no duplicates
+            assert(i not in indexes)
+            # Set the weight of the selected transition to zero
+            # so it won't be selected again until the DeepQ 
+            # algorithm updates its priority, which should happen
+            # soon after sampling.
+            self.tree.set_weight(i, 0)
+            indexes.append(i)
+            samples.append(self.tree.get_data(i))
+            weights.append(w)
 
-        return indexes, samples
+        return indexes, samples, weights
 
     def update_weight(self, index, weight):
         self.tree.set_weight(index, weight)
         return
-
-    def set_all_weights(self, weight):
-        for i in range(len(self)):
-            self.update_weight(i, weight)

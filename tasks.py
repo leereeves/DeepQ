@@ -13,8 +13,8 @@ class Task(object):
         self.step_count = 0
         self.env = None
 
-    def create_network(self, device):
-        return None
+    def create_network(self):
+        raise NotImplementedError
 
     def step(self, action):
         self.step_count += 1
@@ -39,8 +39,8 @@ class AtariTask(Task):
         self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
         self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
 
-    def create_network(self, learning_rate, device):
-        return networks.AtariNetwork(len(self.actions), learning_rate, device)
+    def create_network(self):
+        return networks.AtariNetwork(len(self.actions))
 
     def render(self):
         return # Atari games in OpenAI gym don't support this method any more
@@ -64,8 +64,8 @@ class CartpoleTask(Task):
         self.env = gym.make(self.name)
         self.state_len = len(self.env.reset())
 
-    def create_network(self, learning_rate, device):
-        return networks.FCNetwork(self.state_len, len(self.actions), learning_rate, device)
+    def create_network(self):
+        return networks.FCNetwork(self.state_len, len(self.actions))
 
 
 def make_task(config):

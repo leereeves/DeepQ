@@ -1,5 +1,15 @@
 # DeepQ
 
+A PyTorch implementation of Deep Q Learning (Minh 2015), with the following improvements:
+
+* Double Q Learning to reduce overestimation (Van Hasselt 2016)
+
+* Prioritized Experience Replay for faster learning (Schaul 2016)
+
+* Combined Experience Replay (Zhang 2017)
+
+## Installation
+
 
 ## References
 
@@ -19,3 +29,6 @@ Van Hasselt, Hado, Arthur Guez, and David Silver. "Deep reinforcement learning w
 
 https://ojs.aaai.org/index.php/AAAI/article/download/10295/10154
 
+Zhang, Shangtong, and Richard S. Sutton. "A deeper look at experience replay." arXiv preprint arXiv:1712.01275 (2017).
+
+https://arxiv.org/pdf/1712.01275.pdf
