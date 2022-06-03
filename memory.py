@@ -24,7 +24,7 @@ class ReplayMemory(object):
     def __len__(self):
         return self.allocated
 
-    def store_transition(self, state, action, new_state, reward, done, weight):
+    def store_transition(self, state, action, new_state, reward, done):
         self.buffer[self.index] = (state, action, new_state, reward, done)
         if (self.allocated + 1) < self.capacity:
             self.allocated += 1
@@ -49,14 +49,19 @@ class PrioritizedReplayMemory(object):
     def __len__(self):
         return self.tree.allocated
 
-    def store_transition(self, state, action, new_state, reward, done, weight):
+    def store_transition(self, state, action, new_state, reward, done):
         t = (state, action, new_state, reward, done)
-        self.tree.push(t, weight)
+        self.tree.push(t, 1)
 
     def sample(self, batch_size):
-        indexes = []
-        samples = []
-        weights = []
+        # First, add the most recent transition (see Zhang 2017)
+        i = self.tree.prev_push
+        indexes = [i]
+        samples = [self.tree.get_data(i)]
+        weights = [1]
+        self.tree.set_weight(i, 0)
+
+        # Now complete the batch by drawing random samples with priority
         N = len(self)
         while len(indexes) < batch_size:
             r = random.random() * self.tree.get_total_weight()

@@ -18,7 +18,7 @@ class Task(object):
 
     def step(self, action):
         self.step_count += 1
-        return self.env.step(self.actions[action])
+        return self.env.step(self.actions[action]) + (False, )
 
     def render(self):
         return self.env.render()

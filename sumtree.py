@@ -18,13 +18,15 @@ class SumTree():
         # This buffer holds the data
         self.data = np.zeros(capacity, dtype=object)
         self.allocated = 0
+        self.prev_push = None
         self.next_push = 0
         self.first_leaf = capacity - 1
 
     def push(self, data, weight):
-        self.data[self.next_push] = data
-        self.set_weight(self.next_push, weight)
-        
+        self.prev_push = self.next_push
+        self.data[self.prev_push] = data
+        self.set_weight(self.prev_push, weight)
+
         if (self.allocated + 1) < self.capacity:
             self.allocated += 1
             self.next_push += 1

@@ -13,6 +13,14 @@ A PyTorch implementation of Deep Q Learning (Minh 2015), with the following impr
 
 ## References
 
+Brockman, Greg, et al. "Openai gym." arXiv preprint arXiv:1606.01540 (2016).
+
+https://arxiv.org/pdf/1606.01540.pdf
+
+https://github.com/openai/gym
+
+https://www.gymlibrary.ml/
+
 He, Kaiming, et al. "Delving deep into rectifiers: Surpassing human-level performance on imagenet classification." Proceedings of the IEEE international conference on computer vision. 2015.
 
 https://openaccess.thecvf.com/content_iccv_2015/papers/He_Delving_Deep_into_ICCV_2015_paper.pdf

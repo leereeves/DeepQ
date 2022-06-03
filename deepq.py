@@ -126,7 +126,7 @@ class DeepQ(object):
 
         # Calculate annealing factor for importance sampling
         # Grows linearly from 0.4 to 1 during exploration as epsilon decreases
-        beta = 0.4 + (0.6 * self.task.step_count / self.final_exploration_step)
+        beta = 0.4 + (0.6 * np.min([self.task.step_count / self.final_exploration_step, 1]))
 
         # Normalize weights so they only scale the update downwards
         weights_batch = weights_batch / weights_batch.max()
@@ -168,8 +168,7 @@ class DeepQ(object):
                 new_state, reward, done, info, dead = self.task.step(action)
                 score += reward
                 clipped_reward = np.sign(reward)
-                weight = self.config['initial_weight']
-                self.memory.store_transition(state, action, new_state, clipped_reward, done or dead, weight)
+                self.memory.store_transition(state, action, new_state, clipped_reward, done or dead)
                 self.minibatch_update()
                 state = new_state
 
