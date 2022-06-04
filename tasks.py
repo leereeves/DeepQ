@@ -5,23 +5,41 @@ import random
 
 import networks
 
-class Task(object):
+class TaskInterface(object):
     def __init__(self, config):
+        return
+
+    def step(self, action):
+        raise NotImplementedError
+
+    def render(self):
+        raise NotImplementedError
+
+    def reset(self):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+
+class GymTask(TaskInterface):
+    def __init__(self, config):
+        super().__init__(config)
         self.config = config
         self.name = config['gym_env']
         self.actions = config['actions']
         self.step_count = 0
         self.env = None
 
-    def create_network(self):
-        raise NotImplementedError
-
     def step(self, action):
         self.step_count += 1
         return self.env.step(self.actions[action]) + (False, )
 
     def render(self):
-        return self.env.render()
+        if 'show_game' in self.config and self.config['show_game']:
+            return self.env.render()
+        else:
+            return
 
     def reset(self):
         return self.env.reset()
@@ -29,18 +47,21 @@ class Task(object):
     def close(self):
         return self.env.close()
 
-class AtariTask(Task):
+class CartpoleTask(GymTask):
     def __init__(self, config):
-        super(AtariTask, self).__init__(config)
-        if config['show_game']:
+        super().__init__(config)
+        self.env = gym.make(self.name)
+        self.state_len = len(self.env.reset())
+
+class AtariTask(GymTask):
+    def __init__(self, config):
+        super().__init__(config)
+        if 'show_game' in config and config['show_game']:
             self.env = gym.make(self.name, render_mode = "human", frameskip = 1)
         else:
             self.env = gym.make(self.name, frameskip = 1)
         self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
         self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
-
-    def create_network(self):
-        return networks.AtariNetwork(len(self.actions))
 
     def render(self):
         return # Atari games in OpenAI gym don't support this method any more
@@ -58,25 +79,3 @@ class AtariTask(Task):
         return state, reward, done, info, dead
 
 
-class CartpoleTask(Task):
-    def __init__(self, config):
-        super(CartpoleTask, self).__init__(config)
-        self.env = gym.make(self.name)
-        self.state_len = len(self.env.reset())
-
-    def create_network(self):
-        return networks.FCNetwork(self.state_len, len(self.actions))
-
-
-def make_task(config):
-
-    name = config['task_class'].casefold()
-
-    if name == 'cartpole':
-        return CartpoleTask(config)
-
-    if name == 'breakout':
-        return AtariTask(config)
-
-    if name == 'pong':
-        return AtariTask(config)

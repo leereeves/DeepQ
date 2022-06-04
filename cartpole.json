@@ -1,7 +1,5 @@
 {
-    "show_game": true,
     "gym_env": "CartPole-v1",
-    "task_class": "cartpole",
     "actions": [0, 1],
     "max_episodes": 1000,
     "eval_episode_freq" : 10,

@@ -3,32 +3,30 @@ from torch.nn import Linear, ReLU
 
 # Fully connected network for classic control tasks
 class FCNetwork(torch.nn.Module):
-    def __init__(self, state_len, n_actions):
+    def __init__(self, config):
         super().__init__()
-        self.n_actions = n_actions
 
         self.network = torch.nn.Sequential(
-            torch.nn.Linear(state_len, 512),
+            torch.nn.Linear(config['state_len'], 512),
             torch.nn.ReLU(),
             torch.nn.Linear(512, 512),
             torch.nn.ReLU(),
-            torch.nn.Linear(512, n_actions)
+            torch.nn.Linear(512, len(config['actions']))
         )
         
     def forward(self, state):
         return self.network(state)
-
+   
 # Convolutional network for Atari games, as described in Mnih 2015
 class AtariNetwork(torch.nn.Module):
-    def __init__(self, n_actions):
+    def __init__(self, config):
         super().__init__()
-        self.n_actions = n_actions
 
         self.conv1 = torch.nn.Conv2d(4, 32, kernel_size = 8, stride = 4, dtype=torch.float32)
         self.conv2 = torch.nn.Conv2d(32, 64, 4, 2, dtype=torch.float32)
         self.conv3 = torch.nn.Conv2d(64, 64, 3, 1, dtype=torch.float32)
         self.fc4 = torch.nn.Linear(7 * 7 * 64, 512, dtype=torch.float32)
-        self.fc5 = torch.nn.Linear(512, self.n_actions, dtype=torch.float32)
+        self.fc5 = torch.nn.Linear(512, len(config['actions']), dtype=torch.float32)
 
         self.init_weights()
 
@@ -41,11 +39,6 @@ class AtariNetwork(torch.nn.Module):
         x = x.view(x.size(0), -1)
         x = torch.nn.functional.relu(self.fc4(x))
         x = self.fc5(x)
-        # This network initially generates random values whose variance is close to 1,
-        # so the rewards are on the same order of magnitude as the randomness
-        # and it is hard to learn from that information. To solve this problem,
-        # I scale the output so the variance of the random outputs is much less than 1
-        # return x * self.output_scale
         return x
 
     def init_weights(self):
