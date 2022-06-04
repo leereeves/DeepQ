@@ -6,13 +6,14 @@
 # Useful empirical tips at:
 # https://towardsdatascience.com/tutorial-double-deep-q-learning-with-dueling-network-architectures-4c1b3fb7f756
 
+import datetime
 import math
 import numpy as np
 import random
 import time
 import torch
-from datetime import timedelta
 from os.path import exists
+from torch.utils.tensorboard import SummaryWriter 
 
 import memory
 
@@ -151,7 +152,12 @@ class DeepQ(object):
         torch.save(self.policy_network.state_dict(), self.get_model_filename())
 
     def train(self):
-
+        # Open Tensorboard log
+        path = "./tensorboard/" + datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        log = SummaryWriter(path)
+        hp = "lr: {} bsize: {} gamma: {}".format(self.lr, self.batch_size, self.gamma)
+        log.add_text("Hyperparameters", hp)
+        
         start = time.time()
         scores = []
 
@@ -173,15 +179,24 @@ class DeepQ(object):
                 state = new_state
 
             scores.append(score)
-            t = math.ceil(time.time() - start)
+            moving_average = np.average(scores[-100:])
+            elapsed_time = math.ceil(time.time() - start)
             print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. ε={:0.2f}. Avg p={:0.2f}. Avg q={:0.2f}".format(
-                timedelta(seconds=t), self.episode, self.task.step_count, score, np.average(scores[-10:]), 
-                self.epsilon, self.memory.tree.get_average_weight(), np.average(self.qs)))
+                datetime.timedelta(seconds=elapsed_time), 
+                self.episode, 
+                self.task.step_count, 
+                score, 
+                moving_average, 
+                self.epsilon, 
+                self.memory.tree.get_average_weight(), 
+                np.average(self.qs)))
 
             if self.episode > 0 and self.episode % 10 == 0:
                 print("Saving model {}".format(self.get_model_filename()))
                 self.save_model()
 
+            log.add_scalars('episode', {'score': scores[-1], 'score_average': moving_average}, self.episode)
 
         self.task.close()
+        log.close()
 
