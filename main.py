@@ -17,7 +17,7 @@ def get_builtin(name, config):
         nn_class   = networks.FCNetwork
         config['state_len'] = 4
 
-    elif name == 'breakout' or name == 'pong':
+    elif name == 'breakout' or name == 'pong' or name == 'spaceinv':
         task_class = tasks.AtariTask
         nn_class   = networks.AtariNetwork
 

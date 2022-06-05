@@ -1,6 +1,6 @@
 {
-    "gym_env": "PongDeterministic-v4",
-    "actions": [1, 2, 3],
+    "gym_env": "SpaceInvadersDeterministic-v4",
+    "actions": [0, 1, 2, 3, 4, 5],
     "max_episodes": 10000,
     "eval_episode_freq" : 10,
     "batch_size": 32,
@@ -13,5 +13,5 @@
     "final_exploration_step": 250000,
     "learning_rate": 0.00005,
     "gamma": 0.99,
-    "checkpoint_filename": "pong.pt"
+    "checkpoint_filename": "spaceinv.pt"
 }
