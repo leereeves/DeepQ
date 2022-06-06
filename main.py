@@ -2,10 +2,11 @@ import json
 import sys
 import torch
 
+import deepq
 import networks
+import strategy
 import tasks
 
-import deepq
 
 
 def get_builtin(name, config):
@@ -21,7 +22,14 @@ def get_builtin(name, config):
         task_class = tasks.AtariTask
         nn_class   = networks.AtariNetwork
 
-    return task_class, nn_class, config
+    strategy_name = config['exploration_strategy'].casefold()
+
+    if strategy_name == 'annealing':
+        strategy_class = strategy.AnnealingStrategy
+    else:
+        strategy_class = strategy.EpsilonGreedyStrategy
+
+    return task_class, nn_class, strategy_class, config
 
 if __name__=="__main__":
     if len(sys.argv) < 2:
@@ -44,5 +52,5 @@ if __name__=="__main__":
         print("No CUDA device found, or CUDA is not installed. Training on CPU.")
         config['device'] = 'cpu'
 
-    task_class, nn_class, config = get_builtin(task_name, config)
-    deepq.train(task_class, nn_class, config)
+    task_class, nn_class, strategy_class, config = get_builtin(task_name, config)
+    deepq.train(task_class, nn_class, strategy_class, config)

@@ -14,21 +14,22 @@ from torch.utils.tensorboard import SummaryWriter
 
 import memory
 
-def train(task_class, network_class, config):
+def train(task_class, network_class, strategy_class, config):
     device = torch.device(config['device'])
     policy_network = network_class(config).to(device)
     target_network = network_class(config).to(device)
 
     rank = 0
-    q = DeepQ(rank, task_class, policy_network, target_network, config)
+    q = DeepQ(rank, task_class, strategy_class, policy_network, target_network, config)
     q.train()
            
 
 class DeepQ(object):
-    def __init__(self, rank, task_class, policy_network, target_network, config):
+    def __init__(self, rank, task_class, strategy_class, policy_network, target_network, config):
         self.config = config
         self.rank = rank
         self.task = task_class(config)
+        self.strategy = strategy_class(config)
         self.policy_network = policy_network
         self.target_network = target_network
 
@@ -36,11 +37,11 @@ class DeepQ(object):
         self.memory = memory.PrioritizedReplayMemory(config['memory_size'])
         self.memory_alpha = 0.1 # somewhat less than 1 so rewards are prioritized
         self.gamma = config['gamma']
-        self.epsilon = self.config['initial_exploration']
 
         self.optimizer = torch.optim.Adam(self.policy_network.parameters(), lr = self.config['learning_rate'])
         self.loss = torch.nn.SmoothL1Loss(reduction = 'none', beta = 1.0)
 
+        self.action_count = len(self.task.actions)
         self.step_count = 0
 
         # Load old weights if they exist, to continue training
@@ -59,31 +60,16 @@ class DeepQ(object):
         return self.config['checkpoint_filename']
 
 
-    def compute_epsilon(self):
-        # a uniform random policy is run for this number of frames
-        if self.step_count < self.config['replay_start_size']:
-            self.epsilon = 1
-        elif self.episode % self.config['eval_episode_freq'] == 0:
-            self.epsilon = 0.01
-        elif self.step_count > self.config['final_exploration_step']:
-            self.epsilon = self.config['final_exploration']
-        else:
-            self.epsilon = self.config['initial_exploration'] + \
-                (self.step_count / self.config['final_exploration_step']) * \
-                (self.config['final_exploration'] - self.config['initial_exploration'])
-
-
     def choose_action(self, state):
-        self.compute_epsilon()
-        if random.random() < self.epsilon:
-            action = np.random.randint(0, len(self.task.actions))
-        else:
+        action = self.strategy.action_without_prediction(self.action_count, self.episode, self.step_count)
+
+        if action is None:
             state_tensor = torch.tensor(np.asarray(state, dtype = np.float32)).to(self.device)
             state_tensor = state_tensor.unsqueeze(0) # Add a batch dimension of length 1
             q = self.policy_network.forward(state_tensor)
-            max, index = torch.max(q, dim=1)
-            action = index.item()
-            self.qs.append(max.item())
+            q = q.squeeze(0) # remove batch dimension
+            action = self.strategy.action_with_prediction(self.action_count, self.episode, self.step_count, q)
+            self.qs.append(q[action].item())
 
         return action
 
@@ -193,13 +179,13 @@ class DeepQ(object):
 
                 tb_log.add_scalars(self.config['name'], {'score': scores[-1]}, self.episode)
 
-                print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. ε={:0.2f}. Avg p={:0.2f}. Avg q={:0.2f}".format(
+                print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. {}. Avg p={:0.2f}. Avg q={:0.2f}".format(
                     datetime.timedelta(seconds=elapsed_time), 
                     self.episode, 
                     self.step_count, 
                     score, 
                     moving_average, 
-                    self.epsilon, 
+                    str(self.strategy), 
                     self.memory.tree.get_average_weight(), 
                     np.average(self.qs)))
 
