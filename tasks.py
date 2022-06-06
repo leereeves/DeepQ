@@ -9,13 +9,13 @@ class TaskInterface(object):
     def __init__(self, config):
         return
 
+    def reset(self):
+        raise NotImplementedError
+
     def step(self, action):
         raise NotImplementedError
 
     def render(self):
-        raise NotImplementedError
-
-    def reset(self):
         raise NotImplementedError
 
     def close(self):
@@ -28,11 +28,12 @@ class GymTask(TaskInterface):
         self.config = config
         self.name = config['gym_env']
         self.actions = config['actions']
-        self.step_count = 0
         self.env = None
 
+    def reset(self):
+        return self.env.reset()
+
     def step(self, action):
-        self.step_count += 1
         return self.env.step(self.actions[action]) + (False, )
 
     def render(self):
@@ -40,9 +41,6 @@ class GymTask(TaskInterface):
             return self.env.render()
         else:
             return
-
-    def reset(self):
-        return self.env.reset()
 
     def close(self):
         return self.env.close()
@@ -63,15 +61,14 @@ class AtariTask(GymTask):
         self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
         self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
 
-    def render(self):
-        return # Atari games in OpenAI gym don't support this method any more
-
     def reset(self):
         self.current_lives = None
         return self.env.reset()
 
+    def render(self):
+        return # Atari games in OpenAI gym don't support this method any more
+
     def step(self, action):
-        self.step_count += 1
         state, reward, done, info = self.env.step(self.actions[action])
         lives = info['lives']
         dead = (self.current_lives is not None and lives != self.current_lives)

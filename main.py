@@ -45,4 +45,4 @@ if __name__=="__main__":
         config['device'] = 'cpu'
 
     task_class, nn_class, config = get_builtin(task_name, config)
-    deepq.run_server(task_class, nn_class, config)
+    deepq.train(task_class, nn_class, config)
