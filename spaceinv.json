@@ -6,7 +6,7 @@
     "batch_size": 32,
     "memory_size": 1000000,
     "replay_start_size": 50000,
-    "target_update": 1000,
+    "target_update": 2500,
     "checkpoint_episode_count": 10,
     "initial_exploration": 1,
     "final_exploration": 0.1,
