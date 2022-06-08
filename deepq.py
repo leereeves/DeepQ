@@ -1,5 +1,22 @@
 # Implementation of the Deep Q learning algorithm
-# without task specific details, which are in tasks.py
+
+# Tips for debugging, AKA mistakes I made:
+
+# Normalize the input
+
+# Notice that 4 game frames are stacked into one bundle,
+# one action is chosen per bundle (that is, per 4 frames)
+# and one parameter update is done per _action_.
+# So there's one parameter update per 16 frames.
+# That target network frequency is confusing. It's:
+# once per 40k frames = 10k actions = 2.5k updates
+
+# The RMSProp optimizer used in the paper is different
+# from the RMSProp in PyTorch, but that's ok, Adam works.
+
+# Setting the Q target to zero when a life is lost seems 
+# to help, but I've yet to confirm this in every game.
+# OpenAI discourages this, but the original paper did this.
 
 import datetime
 import math
