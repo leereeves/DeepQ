@@ -33,16 +33,20 @@ class DeepQ(object):
         self.policy_network = policy_network
         self.target_network = target_network
 
+        self.update_freq = config['update_freq']
+
         self.device = torch.device(config['device'])
         self.memory = memory.PrioritizedReplayMemory(config['memory_size'])
-        self.memory_alpha = 0.1 # somewhat less than 1 so rewards are prioritized
+        self.alpha = 1e-5
         self.gamma = config['gamma']
 
         self.optimizer = torch.optim.Adam(self.policy_network.parameters(), lr = self.config['learning_rate'])
         self.loss = torch.nn.SmoothL1Loss(reduction = 'none', beta = 1.0)
 
+        # These two terms do not match Mnih 2015. Should be action_space_size and action_count
         self.action_count = len(self.task.actions)
         self.step_count = 0
+        self.update_count = 0
 
         # Load old weights if they exist, to continue training
         if self.rank == 0:
@@ -74,15 +78,29 @@ class DeepQ(object):
         return action
 
     def minibatch_update(self):
-        # a uniform random policy is run for this number of frames before learning starts
-        if len(self.memory) < self.config['replay_start_size'] or len(self.memory) < self.config['batch_size']:
+        # "a uniform random policy is run for replay_start_size frames before learning starts"
+        # That is replay_start_size / action_repeat actions (steps)
+        if self.step_count < (self.config['replay_start_size'] / self.config['action_repeat']):
             return
 
-        if self.rank == 0 and (self.step_count % self.config['target_update']) == 0:
+        # "update_freq actions are selected by the agent between successive SGD updates"
+        if self.step_count % self.update_freq != 0:
+            return
+
+        # Ensure we have enough memory to sample a full batch
+        if len(self.memory) < self.config['batch_size']:
+            return
+
+        # All requirements are satisfied, it's time for an update
+        self.update_count += 1
+
+        # "target_update_freq is the frequency (measured in number of parameter updates) 
+        # with which the target network is updated.
+        if self.rank == 0 and (self.update_count % self.config['target_update_freq']) == 0:
             self.target_network.load_state_dict(self.policy_network.state_dict())
 
         indexes, batch, weights = self.memory.sample(self.config['batch_size'])
-        states, actions, new_states, rewards, dones = list(zip(*batch)) # unzip the tuples
+        states, actions, new_states, rewards, dones = list(zip(*batch))
 
         # Follow PyTorch's advice:
         # "UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. 
@@ -117,7 +135,7 @@ class DeepQ(object):
 
         # Calculate annealing factor for importance sampling
         # Grows linearly from 0.4 to 1 during exploration as epsilon decreases
-        beta = 0.4 + (0.6 * np.min([self.step_count / self.config['final_exploration_step'], 1]))
+        self.beta = 0.4 + (0.6 * min([self.step_count / self.config['final_exploration_step'], 1]))
 
         # Normalize weights so they only scale the update downwards
         weights_batch = weights_batch / weights_batch.max()
@@ -125,7 +143,7 @@ class DeepQ(object):
         # Train the network to predict the results of the Bellman equation        
         self.optimizer.zero_grad()
         loss = self.loss(prediction, target)
-        loss = loss * weights_batch.pow(beta) # importance sampling
+        loss = loss * weights_batch.pow(self.beta) # importance sampling
         loss = loss.mean()
         loss.backward()
         self.optimizer.step()
@@ -134,7 +152,7 @@ class DeepQ(object):
         with torch.no_grad():
             deltas = (target-prediction).absolute()
         for i in range(self.config['batch_size']):
-            self.memory.update_weight(indexes[i], deltas[i].item() + self.memory_alpha)
+            self.memory.update_weight(indexes[i], deltas[i].item() + self.alpha)
 
         return
 
@@ -179,7 +197,7 @@ class DeepQ(object):
 
                 tb_log.add_scalars(self.config['name'], {'score': scores[-1]}, self.episode)
 
-                print("Time {}. Episode {}. Step {}. Score {:0.0f}. MAvg={:0.1f}. {}. Avg p={:0.2f}. Avg q={:0.2f}".format(
+                print("Time {}. Episode {}. Action {}. Score {:0.0f}. MAvg={:0.1f}. {}. Avg p={:0.2f}. Avg q={:0.2f}".format(
                     datetime.timedelta(seconds=elapsed_time), 
                     self.episode, 
                     self.step_count, 

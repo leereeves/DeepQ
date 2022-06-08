@@ -59,7 +59,7 @@ class AtariTask(GymTask):
         else:
             self.env = gym.make(self.name, frameskip = 1)
         self.env = gym.wrappers.AtariPreprocessing(self.env, scale_obs=True)
-        self.env = gym.wrappers.FrameStack(self.env, num_stack=4, lz4_compress=True)
+        self.env = gym.wrappers.FrameStack(self.env, num_stack=config['action_repeat'], lz4_compress=True)
 
     def reset(self):
         self.current_lives = None

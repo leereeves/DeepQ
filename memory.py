@@ -54,21 +54,22 @@ class PrioritizedReplayMemory(object):
         t = (state, action, new_state, reward, done)
         self.tree.push(t, 1)
 
+    # Draw a random sample of batch_size transitions by priority
+    # (that is, the probability of drawing a transition
+    # is proportional to the priority of that transition)
     def sample(self, batch_size):
-        # First, add the most recent transition (see Zhang 2017)
-        i = self.tree.prev_push
-        indexes = [i]
-        samples = [self.tree.get_data(i)]
-        weights = [1]
-        self.tree.set_weight(i, 0)
+        indexes = []
+        samples = []
+        weights = []
 
-        # Now complete the batch by drawing random samples with priority
         N = len(self)
         while len(indexes) < batch_size:
             r = random.random() * self.tree.get_total_weight()
             i = self.tree.get_index_by_weight(r)
-            # For debugging: verify that there are no duplicates
-            assert(i not in indexes)
+            
+            if i in indexes:
+                continue
+
             weight = self.tree.get_weight(i)
             total_weight = self.tree.get_total_weight()
             # to avoid division by zero, replace with smallest positive float
@@ -80,9 +81,8 @@ class PrioritizedReplayMemory(object):
             p = weight / total_weight
             isw = (1/N) * (1/p)
             # Set the weight of the selected transition to zero
-            # so it won't be selected again until the DeepQ 
-            # algorithm updates its priority, which should happen
-            # soon after sampling.
+            # to reduce the chance it will be drawn again until the agent 
+            # updates its priority (that should happen soon after sampling).
             self.tree.set_weight(i, 0)
             indexes.append(i)
             samples.append(self.tree.get_data(i))
