@@ -10,6 +10,7 @@
 # to schedule review of past transitions whose target values
 # may have changed.
 
+import math
 import random
 
 import sumtree
@@ -66,11 +67,18 @@ class PrioritizedReplayMemory(object):
         while len(indexes) < batch_size:
             r = random.random() * self.tree.get_total_weight()
             i = self.tree.get_index_by_weight(r)
-            # w is the weight for importance sampling (see Schaul 2016)
-            # w = (1/N) * (1/P(i))
-            w = (1/N) * (self.tree.get_total_weight() / self.tree.get_weight(i))
             # For debugging: verify that there are no duplicates
             assert(i not in indexes)
+            weight = self.tree.get_weight(i)
+            total_weight = self.tree.get_total_weight()
+            # to avoid division by zero, replace with smallest positive float
+            if weight == 0:
+                weight = math.getnextafter(0.0, math.inf)
+            if total_weight == 0:
+                total_weight = math.getnextafter(0.0, math.inf)
+            # calculate the weight for importance sampling (see Schaul 2016)
+            p = weight / total_weight
+            isw = (1/N) * (1/p)
             # Set the weight of the selected transition to zero
             # so it won't be selected again until the DeepQ 
             # algorithm updates its priority, which should happen
@@ -78,7 +86,7 @@ class PrioritizedReplayMemory(object):
             self.tree.set_weight(i, 0)
             indexes.append(i)
             samples.append(self.tree.get_data(i))
-            weights.append(w)
+            weights.append(isw)
 
         return indexes, samples, weights
 
