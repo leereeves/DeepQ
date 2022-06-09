@@ -8,7 +8,9 @@ A PyTorch implementation of Deep Q Learning (Minh 2015), with the following impr
 
 * Combined Experience Replay (Zhang 2017)
 
-![Pong Demo](https://leereeves.github.io/demos/pongdemo.gif)
+## Results
+
+https://user-images.githubusercontent.com/10812888/172884861-843fb7b5-8823-4017-9042-25c5aff88438.mp4
 
 ## Installation
 
