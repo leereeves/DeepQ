@@ -1,6 +1,12 @@
 {
+    "show_game": false,
+    "comments": "",
+ 
+    "task_type": "atari",
     "gym_env": "BreakoutDeterministic-v4",
     "actions": [1, 2, 3],
+ 
+    "agent_type": "ddqnprm",
     "max_episodes": 10000,
     "action_repeat": 4,
     "update_freq": 4,
@@ -10,11 +16,13 @@
     "replay_start_size": 50000,
     "target_update_freq": 10000,
     "checkpoint_episode_count": 10,
-    "exploration_strategy": "epsilon",
+    "exploration_strategy": "epsilon-greedy",
     "initial_exploration": 1,
     "final_exploration": 0.1,
     "final_exploration_step": 250000,
     "learning_rate": 0.00005,
     "gamma": 0.99,
+
+    "network_type": "mnih2015",
     "checkpoint_filename": "breakout.pt"
 }

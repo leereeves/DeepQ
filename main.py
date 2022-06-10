@@ -7,20 +7,18 @@ import networks
 import strategy
 import tasks
 
+from playground import RLPlayground
 
 
 def get_builtin(name, config):
 
     name = name.casefold()
 
-    if name == 'cartpole':
-        task_class = tasks.CartpoleTask
-        nn_class   = networks.FCNetwork
-        config['state_len'] = 4
+    pg = RLPlayground()
+    task_class = pg.get_task(config['task_type'])
+    nn_class   = pg.get_network(config['network_type'])
 
-    elif name == 'breakout' or name == 'pong' or name == 'spaceinv':
-        task_class = tasks.AtariTask
-        nn_class   = networks.AtariNetwork
+    agent_class = deepq.DeepQ
 
     strategy_name = config['exploration_strategy'].casefold()
 
@@ -29,7 +27,7 @@ def get_builtin(name, config):
     else:
         strategy_class = strategy.EpsilonGreedyStrategy
 
-    return task_class, nn_class, strategy_class, config
+    return task_class, nn_class, strategy_class, agent_class, config
 
 if __name__=="__main__":
     if len(sys.argv) < 2:
@@ -52,5 +50,5 @@ if __name__=="__main__":
         print("No CUDA device found, or CUDA is not installed. Training on CPU.")
         config['device'] = 'cpu'
 
-    task_class, nn_class, strategy_class, config = get_builtin(task_name, config)
+    task_class, nn_class, strategy_class, agent_class, config = get_builtin(task_name, config)
     deepq.train(task_class, nn_class, strategy_class, config)
