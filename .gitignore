@@ -1,5 +1,6 @@
 ideas.txt
 tensorboard/
+captures/
 
 # PyTorch network weights
 *.pt

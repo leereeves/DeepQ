@@ -1,0 +1,29 @@
+
+{
+    "show_game": true,
+    "comments": "16 hours, 10k episodes, 7.5M actions, 30M frames",
+ 
+    "task_type": "atari",
+    "gym_env": "SpaceInvadersDeterministic-v4",
+    "actions": [0, 1, 2, 3, 4, 5],
+ 
+    "agent_type": "ddqnprm",
+    "max_episodes": 10,
+    "action_repeat": 4,
+    "update_freq": 4,
+    "eval_episode_freq": 1,
+    "batch_size": 32,
+    "memory_size": 1000000,
+    "replay_start_size": 0,
+    "target_update_freq": 10000,
+    "checkpoint_episode_count": 1000,
+    "exploration_strategy": "epsilon-greedy",
+    "initial_exploration": 0.01,
+    "final_exploration": 0.01,
+    "final_exploration_step": 250000,
+    "learning_rate": 0,
+    "gamma": 0.99,
+
+    "network_type": "mnih2015",
+    "checkpoint_filename": "spaceinv-demo.pt"
+}
