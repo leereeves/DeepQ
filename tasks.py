@@ -1,6 +1,7 @@
 # Wraps reinforcement learning tasks provided by OpenAI Gym
 
 import gym
+import numpy as np
 import random
 
 import networks
@@ -34,7 +35,11 @@ class GymTask(TaskInterface):
         return self.env.reset()
 
     def step(self, action):
-        return self.env.step(self.actions[action]) + (False, )
+        if isinstance(self.env.action_space, gym.spaces.Discrete):
+            a = action
+        else:
+            a = np.array([self.actions[action]])
+        return self.env.step(a) + (False, )
 
     def render(self):
         if 'show_game' in self.config and self.config['show_game']:
@@ -45,11 +50,10 @@ class GymTask(TaskInterface):
     def close(self):
         return self.env.close()
 
-class CartpoleTask(GymTask):
+class BasicGymTask(GymTask):
     def __init__(self, config):
         super().__init__(config)
         self.env = gym.make(self.name)
-        self.state_len = len(self.env.reset())
 
 class AtariTask(GymTask):
     def __init__(self, config):

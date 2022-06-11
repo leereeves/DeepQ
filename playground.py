@@ -35,4 +35,4 @@ class RLPlayground(object):
         self.add_network('mnih2015', networks.AtariNetwork)
 
         self.add_task('atari', tasks.AtariTask)
-        self.add_task('cartpole', tasks.CartpoleTask)
+        self.add_task('gym', tasks.BasicGymTask)

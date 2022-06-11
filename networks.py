@@ -7,7 +7,7 @@ class FCNetwork(torch.nn.Module):
         super().__init__()
 
         self.network = torch.nn.Sequential(
-            torch.nn.Linear(config['state_len'], 512),
+            torch.nn.Linear(config['observation_shape'][0], 512),
             torch.nn.ReLU(),
             torch.nn.Linear(512, 512),
             torch.nn.ReLU(),
